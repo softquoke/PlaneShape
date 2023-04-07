@@ -5,13 +5,14 @@ import pprint
 
 class PlaneShape(Frame):    
 
-    def __init__(self, points_figure, root_size, range_size):
+    def __init__(self, points_figure, root_size, range_size, debug=True):
         super().__init__()
         self.root_size = root_size
         self.points_figure = points_figure
         self.range_size = range_size
         self.basic_lines = []
         self.connecting_lines = []
+        self.debug = debug
 
 
     def initUI(self):
@@ -38,15 +39,18 @@ class PlaneShape(Frame):
         каждый из массивов это координаты х, y начальной и конечной точки
         """
         
-        print("//draw_line() -", coodinates)
+        if self.debug: print("//draw_line() -", coodinates)
         self.canvas.create_line(
             coodinates[0][0], 
-            self.root_size[1] - (coodinates[0][1] + self.range_size),
+            self.correctY(coodinates[0][1]),
             coodinates[1][0],
-            self.root_size[1] - (coodinates[1][1] + self.range_size),
+            self.correctY(coodinates[1][1]),
             width=width,
             fill=fill
         )
+
+    def correctY(self, y):
+        return self.root_size[1] - (y + self.range_size)
 
     def set_equation(self, points_figure: dict) -> dict:
         #уравнение прямой
@@ -57,8 +61,8 @@ class PlaneShape(Frame):
             answer = {
                 "relation": "y from x",
                 "coordinates": [points_figure[0], points_figure[1]], 
-                "k": round(k, 3), 
-                "b": round(b, 3)
+                "k": round(k, 2), 
+                "b": round(b, 2)
             }  
             return answer
         except ZeroDivisionError:
@@ -68,9 +72,38 @@ class PlaneShape(Frame):
                 "coordinates": [points_figure[0], points_figure[1]]
             }   
         
-            return answer
-        
-        
+            return answer      
+
+    def intersection_lines(self, line_one, line_two) -> dict:
+        print("\n//intersection_lines()")
+
+        x, k, y, b = 0, 0, 0, 0
+        point_intersection = []
+
+        if (line_one["relation"] == line_two["relation"]) and (line_one["relation"] == "y from x"):
+            k = line_one["k"] - line_two["k"]
+            b = line_two["b"] - line_one["b"]
+            try:
+                x = b / k
+            except ZeroDivisionError:
+                x = b
+            y = (line_one["k"]  * x) + line_one["b"]        
+        elif (line_one["relation"] == "x from y") and (line_two["relation"] == "y from x"):
+            x = line_one["x"]
+            y = (line_two["k"] * x) + line_two["b"]
+        elif (line_two["relation"] == "x from y") and (line_one["relation"] == "y from x"):
+            x = line_two["x"]
+            y = (line_one["k"] * x) + line_one["b"]
+        else:
+            return False
+
+        point_intersection = [round(x, 2), round(y, 2)]
+        print(f"point intersection - {point_intersection}")
+        self.draw_point(x, y)
+        return point_intersection
+
+    def draw_point(self, x, y):
+        self.canvas.create_oval(x - 3, self.correctY(y - 3), x + 3, self.correctY(y + 3), fill="red")
     
     def formation_of_basic_lines(self):
         print("\n//formation_of_basic_lines()")
@@ -81,6 +114,14 @@ class PlaneShape(Frame):
             )
         pprint.pprint(self.basic_lines)    
 
+    def all_intersection_points(self):
+        for i in range(1, len(self.connecting_lines) - len(self.connecting_lines) + 2):
+            # for j in range(i + 1, len(self.connecting_lines)):
+            #     self.intersection_lines(self.connecting_lines[i], self.connecting_lines[j])
+
+            for k in range(0, len(self.basic_lines)):
+                self.intersection_lines(self.connecting_lines[i], self.basic_lines[k])
+
     #TODO надо правильно сравнить линии
     def selection_of_connecting_lines(self):        
         print('\n//selection_of_connecting_lines()')
@@ -88,10 +129,10 @@ class PlaneShape(Frame):
         for i in range(0, len(self.points_figure) - 2):
             for j in range(i + 2, len(self.points_figure) - 1):
                 equation = self.set_equation([self.points_figure[i], self.points_figure[j]])
-                print("\nequation ", equation)
+                if self.debug: print("\nequation ", equation)
                 
                 for basic_line in self.basic_lines:
-                    print("basic line ", basic_line)
+                    if self.debug: print("basic line ", basic_line)
                     if sum([sum(item) for item in equation["coordinates"]]) == sum([sum(item) for item in basic_line["coordinates"]]):
                         if (equation["relation"] == basic_line["relation"]) and (equation["relation"] == "y from x"):
                             if (abs(equation["k"]) == abs(basic_line["k"])) and (equation["b"] == basic_line["b"]):
@@ -126,7 +167,7 @@ def main():
         data = json.load(file)
 
     range_size = 50
-    
+    INDEX_FIGURE = 3
     """
     0 - трапеция
     1 - квадрат
@@ -135,12 +176,12 @@ def main():
     """
     points_figure = [[coordinate[0] * range_size, 
                 coordinate[1] * range_size] 
-                for coordinate in data["points_figures"][3]] # индекс - номер фигуры из test1.json
+                for coordinate in data["points_figures"][INDEX_FIGURE]] # индекс - номер фигуры из test1.json
     root = Tk()
     
-    height = 500
-    width = 500
-    root.geometry(f'{width}x{height}+{int(root.winfo_screenwidth()/2)-int(width/2)}+{int(root.winfo_screenheight()/2)-int(height/2)}')
+    height = 820
+    width = 850
+    root.geometry(f'{width}x{height}+{int(root.winfo_screenwidth()/1.5)-int(width/2)}+{int(root.winfo_screenheight()/1.5)-int(height/2)}')
     root.attributes("-alpha", 0.9)
 
       
@@ -152,7 +193,7 @@ def main():
     complex_figure.selection_of_connecting_lines()
     complex_figure.draw_figure()
     complex_figure.draw_connecting_lines()
-
+    complex_figure.all_intersection_points()
 
     # print("\nbasic lines:")
     # pprint.pprint(complex_figure.basic_lines)
