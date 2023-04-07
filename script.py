@@ -122,7 +122,7 @@ class PlaneShape(Frame):
 
 def main():
 
-    with open("data/test1.json", "r") as file:
+    with open("test1.json", "r") as file:
         data = json.load(file)
 
     range_size = 50
